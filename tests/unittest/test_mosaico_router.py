@@ -989,6 +989,41 @@ class TestHeaderlessDiffNotLeaked:
         assert seen["verb"] == "review"
 
 
+class TestFileHeaderOutsideAFence:
+    """The fence is replaced and the remainder is still scanned, so a file header sitting
+    outside the fence cannot survive to pick the verb."""
+
+    @pytest.mark.parametrize("filename", [
+        "calc.py", "review.py", "reviews.py", "describe.py", "ask.py",
+        "improve.py", "improvements.py", "code_review.md", "IMPROVEMENTS.md",
+    ])
+    def test_filename_outside_a_fence_does_not_pick_the_verb(self, filename):
+        assert _detect_verb(_diff_prose(f"what changed here?\n--- {filename}\n{SAMPLE_DIFF}")) == "ask"
+
+    @pytest.mark.parametrize("trailer", [
+        "now describe it please",
+        "- now describe it please",
+        "  now describe it please",
+        "+1 please describe it",
+    ])
+    def test_prose_after_a_fence_survives(self, trailer):
+        prose = _diff_prose(f"{SAMPLE_DIFF}\n{trailer}")
+        assert trailer.strip() in prose
+        assert _detect_verb(prose) == "describe"
+
+    def test_a_header_before_a_fence_no_longer_overrides_the_request(self):
+        text = f"--- improve.py\n{SAMPLE_DIFF}\nnow describe it please"
+        assert _diff_prose(text).strip() == "now describe it please"
+        assert _detect_verb(_diff_prose(text)) == "describe"
+
+    @pytest.mark.asyncio
+    async def test_the_fenced_diff_is_still_the_content(self, monkeypatch, restore_settings):
+        seen = _routed(monkeypatch)
+        await route_and_run(f"what changed here?\n--- improve.py\n{SAMPLE_DIFF}")
+        assert seen["verb"] == "ask"
+        assert seen["files"] == ["foo.py"]
+
+
 class TestNewestContextWins:
     @pytest.mark.asyncio
     async def test_newest_diff_wins(self, monkeypatch, restore_settings):

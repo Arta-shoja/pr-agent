@@ -182,10 +182,9 @@ def _diff_prose(text: str) -> str:
     punctuation inside the patch body ('?' in a ternary/regex/comment) does not flip the
     default 'review' into 'ask'. A genuine question in the surrounding prose (e.g.
     'what changed here?') is preserved."""
-    # Drop a fenced ```diff ... ``` block entirely.
-    without_fence = re.sub(r"```\s*diff\s*\n.*?```", " ", text, flags=re.IGNORECASE | re.DOTALL)
-    if without_fence != text:
-        return without_fence
+    # Drop a fenced ```diff ... ``` block entirely, then scan what is left: a file header
+    # sitting OUTSIDE the fence would otherwise never be excised.
+    text = re.sub(r"```\s*diff\s*\n.*?```", " ", text, flags=re.IGNORECASE | re.DOTALL)
     kept, in_diff = [], False
     for line in text.split("\n"):
         if _DIFF_START_RE.match(line):
