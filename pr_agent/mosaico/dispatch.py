@@ -46,11 +46,9 @@ _DIFF_HEADER_RE = re.compile(r"^diff --git ", re.MULTILINE)
 _UNIFIED_HUNK_RE = re.compile(r"^@@ .* @@", re.MULTILINE)
 
 _DIFF_START_RE = re.compile(r"^(?:diff --git |@@ )")
-# A headerless diff (no 'diff --git') would otherwise let its '--- '/'+++ ' file headers
-# survive into the prose and pick the verb. These are dropped on sight but deliberately do
-# NOT open diff mode: only the structural openers above do. Were they to open it, a request
-# on the next line starting '+'/'-'/a space would be eaten as diff body. The trailing space
-# is load-bearing: it is what keeps a markdown rule or setext underline ('---') out.
+# Dropped on sight, but must NOT open diff mode: a request on the next line starting
+# '+'/'-'/a space would then be eaten as diff body. The trailing space is load-bearing,
+# keeping a markdown rule or setext underline ('---') out.
 _DIFF_FILE_HEADER_RE = re.compile(r"^(?:--- |\+\+\+ )")
 _DIFF_BODY_LINE_RE = re.compile(
     r"^(?:diff --git |index [0-9a-fA-F]|--- |\+\+\+ |@@ "
