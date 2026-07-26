@@ -928,6 +928,67 @@ class TestExtendedHeaderNotLeaked:
         assert prose.strip() == "now describe it"
 
 
+class TestHeaderlessDiffNotLeaked:
+    """A diff with no 'diff --git' line: its '--- '/'+++ ' file headers precede the first
+    hunk, so without them opening the diff the FILENAME reaches the verb detector."""
+
+    @staticmethod
+    def _headerless(filename: str) -> str:
+        return (f"what changed here?\n"
+                f"--- {filename}\n"
+                f"+++ {filename}\n"
+                f"@@ -1,2 +1,2 @@\n"
+                f"-x = 1\n"
+                f"+x = 2")
+
+    @pytest.mark.parametrize("filename", [
+        "calc.py", "review.py", "reviews.py", "describe.py", "ask.py",
+        "improve.py", "improvements.py", "code_review.md", "IMPROVEMENTS.md",
+    ])
+    def test_filename_does_not_pick_the_verb(self, filename):
+        assert _detect_verb(_diff_prose(self._headerless(filename))) == "ask"
+
+    def test_headerless_file_headers_are_excised(self):
+        assert _diff_prose(self._headerless("review.py")).strip() == "what changed here?"
+
+    @pytest.mark.parametrize("text, expected", [
+        ("review this diff\n---\nmore context here", "review"),
+        ("improve this diff\n---\nthanks", "improve"),
+        ("review this --- urgently", "review"),
+        ("review this —— urgently", "review"),
+    ])
+    def test_the_trailing_space_keeps_prose_rules_out(self, text, expected):
+        # Pins the trailing space in _DIFF_START_RE: '---' as a markdown rule, a setext
+        # underline, or mid-sentence must never open a diff.
+        assert _diff_prose(text) == text
+        assert _detect_verb(_diff_prose(text)) == expected
+
+    def test_quoted_changelog_bullets_do_not_pick_the_verb(self):
+        text = ("--- v1.2.0 ---\n"
+                "- fixed the review command\n"
+                "- describe now works\n"
+                "please improve this")
+        assert _diff_prose(text).strip() == "please improve this"
+        assert _detect_verb(_diff_prose(text)) == "improve"
+
+    @pytest.mark.asyncio
+    async def test_leaked_filename_no_longer_overrides_the_latest_turn(self, monkeypatch, restore_settings):
+        seen = _routed(monkeypatch)
+        await route_and_run(_blob(("user", f"review this\n{RAW_DIFF_BODY}"),
+                                  ("agent", AGENT_REVIEW_OUTPUT),
+                                  ("user", "--- improve.py\nwhat changed?")))
+        assert seen["verb"] == "ask"
+
+    @pytest.mark.asyncio
+    async def test_a_turn_opening_with_a_file_header_does_not_swallow_a_later_turn(
+            self, monkeypatch, restore_settings):
+        seen = _routed(monkeypatch)
+        await route_and_run(_blob(("user", "--- notes.md\n describe this"),
+                                  ("agent", AGENT_REVIEW_OUTPUT),
+                                  ("user", f"now review it\n{RAW_DIFF_BODY}")))
+        assert seen["verb"] == "review"
+
+
 class TestNewestContextWins:
     @pytest.mark.asyncio
     async def test_newest_diff_wins(self, monkeypatch, restore_settings):

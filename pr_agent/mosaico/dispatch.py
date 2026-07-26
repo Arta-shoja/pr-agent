@@ -45,7 +45,10 @@ _DIFF_FENCE_RE = re.compile(r"```\s*diff", re.IGNORECASE)
 _DIFF_HEADER_RE = re.compile(r"^diff --git ", re.MULTILINE)
 _UNIFIED_HUNK_RE = re.compile(r"^@@ .* @@", re.MULTILINE)
 
-_DIFF_START_RE = re.compile(r"^(?:diff --git |@@ )")
+# '--- '/'+++ ' open a headerless diff (no 'diff --git'), whose file headers would
+# otherwise survive into the prose and let a filename pick the verb. The trailing space
+# is load-bearing: it is what keeps a markdown rule or setext underline ('---') out.
+_DIFF_START_RE = re.compile(r"^(?:diff --git |@@ |--- |\+\+\+ )")
 _DIFF_BODY_LINE_RE = re.compile(
     r"^(?:diff --git |index [0-9a-fA-F]|--- |\+\+\+ |@@ "
     r"|(?:old|new) mode \d|(?:new|deleted) file mode \d"
