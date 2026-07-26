@@ -963,13 +963,27 @@ class TestHeaderlessDiffNotLeaked:
         assert _diff_prose(text) == text
         assert _detect_verb(_diff_prose(text)) == expected
 
-    def test_quoted_changelog_bullets_do_not_pick_the_verb(self):
-        text = ("--- v1.2.0 ---\n"
-                "- fixed the review command\n"
-                "- describe now works\n"
-                "please improve this")
-        assert _diff_prose(text).strip() == "please improve this"
-        assert _detect_verb(_diff_prose(text)) == "improve"
+    @pytest.mark.parametrize("trailer, expected", [
+        ("+1 please describe it", "describe"),
+        ("- please improve the naming", "improve"),
+        ("- what changed here?", "ask"),
+        ("  now describe it please", "describe"),
+    ])
+    def test_a_file_header_does_not_swallow_the_request_after_it(self, trailer, expected):
+        # A file header is dropped on its own line but must not open diff mode: the user's
+        # request on the next line starts with '+'/'-'/a space, which the body pattern eats.
+        assert _detect_verb(_diff_prose(f"--- notes.md\n{trailer}")) == expected
+
+    def test_a_quoted_changelog_keeps_its_prose(self):
+        # '--- v1.2.0 ---' is excised as a file header, but the bullets are the user's own
+        # prose and survive. How that shape then routes is governed by verb selection, not
+        # by prose stripping: it matches the same changelog with no header line at all.
+        bullets = ("- fixed the review command\n"
+                   "- describe now works\n"
+                   "please improve this")
+        prose = _diff_prose(f"--- v1.2.0 ---\n{bullets}")
+        assert prose.strip() == bullets
+        assert _detect_verb(prose) == _detect_verb(_diff_prose(bullets))
 
     @pytest.mark.asyncio
     async def test_leaked_filename_no_longer_overrides_the_latest_turn(self, monkeypatch, restore_settings):
@@ -1010,6 +1024,12 @@ class TestFileHeaderOutsideAFence:
         prose = _diff_prose(f"{SAMPLE_DIFF}\n{trailer}")
         assert trailer.strip() in prose
         assert _detect_verb(prose) == "describe"
+
+    def test_a_header_after_a_fence_does_not_swallow_a_bulleted_request(self):
+        # Both mechanisms at once: the fence is replaced, then a real file header in the
+        # remainder must be dropped without eating the bullet that carries the only verb.
+        text = f"{SAMPLE_DIFF}\n--- notes.md\n- please improve the naming"
+        assert _detect_verb(_diff_prose(text)) == "improve"
 
     def test_a_header_before_a_fence_no_longer_overrides_the_request(self):
         text = f"--- improve.py\n{SAMPLE_DIFF}\nnow describe it please"

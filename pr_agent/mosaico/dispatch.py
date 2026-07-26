@@ -45,10 +45,13 @@ _DIFF_FENCE_RE = re.compile(r"```\s*diff", re.IGNORECASE)
 _DIFF_HEADER_RE = re.compile(r"^diff --git ", re.MULTILINE)
 _UNIFIED_HUNK_RE = re.compile(r"^@@ .* @@", re.MULTILINE)
 
-# '--- '/'+++ ' open a headerless diff (no 'diff --git'), whose file headers would
-# otherwise survive into the prose and let a filename pick the verb. The trailing space
+_DIFF_START_RE = re.compile(r"^(?:diff --git |@@ )")
+# A headerless diff (no 'diff --git') would otherwise let its '--- '/'+++ ' file headers
+# survive into the prose and pick the verb. These are dropped on sight but deliberately do
+# NOT open diff mode: only the structural openers above do. Were they to open it, a request
+# on the next line starting '+'/'-'/a space would be eaten as diff body. The trailing space
 # is load-bearing: it is what keeps a markdown rule or setext underline ('---') out.
-_DIFF_START_RE = re.compile(r"^(?:diff --git |@@ |--- |\+\+\+ )")
+_DIFF_FILE_HEADER_RE = re.compile(r"^(?:--- |\+\+\+ )")
 _DIFF_BODY_LINE_RE = re.compile(
     r"^(?:diff --git |index [0-9a-fA-F]|--- |\+\+\+ |@@ "
     r"|(?:old|new) mode \d|(?:new|deleted) file mode \d"
@@ -189,6 +192,8 @@ def _diff_prose(text: str) -> str:
     for line in text.split("\n"):
         if _DIFF_START_RE.match(line):
             in_diff = True
+            continue
+        if _DIFF_FILE_HEADER_RE.match(line):
             continue
         if in_diff:
             if _DIFF_BODY_LINE_RE.match(line):
