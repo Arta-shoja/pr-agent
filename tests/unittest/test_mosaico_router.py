@@ -974,6 +974,29 @@ class TestHeaderlessDiffNotLeaked:
         # request on the next line starts with '+'/'-'/a space, which the body pattern eats.
         assert _detect_verb(_diff_prose(f"--- notes.md\n{trailer}")) == expected
 
+    @pytest.mark.parametrize("meta", [
+        "Binary files improve.py and improve.py differ",
+        "old mode 100644\nnew mode 100755",
+        "index 1234567..89abcde 100644",
+        "rename from improve.py\nrename to improved.py",
+    ])
+    def test_metadata_after_a_header_does_not_leak_its_filename(self, meta):
+        # A headerless diff never opens diff mode, so metadata following the file header is
+        # only stripped by the after-header path. '--no-prefix' output is the live case:
+        # 'a/improve.py' cannot match the verb pattern but ' improve.py' can.
+        assert _detect_verb(_diff_prose(f"what changed here?\n--- improve.py\n+++ improve.py\n{meta}")) == "ask"
+
+    @pytest.mark.parametrize("text, expected", [
+        ("index 5 is wrong, please improve it", "improve"),
+        ("Binary files are annoying, please describe this", "describe"),
+        ("rename from foo, then improve it", "improve"),
+    ])
+    def test_metadata_shaped_prose_survives_without_a_header(self, text, expected):
+        # The after-header scope is what protects these: with no file header above them they
+        # are ordinary prose and must keep their verb.
+        assert _diff_prose(text) == text
+        assert _detect_verb(_diff_prose(text)) == expected
+
     def test_a_quoted_changelog_keeps_its_prose(self):
         # '--- v1.2.0 ---' is excised as a file header, but the bullets are the user's own
         # prose and survive. How that shape then routes is governed by verb selection, not

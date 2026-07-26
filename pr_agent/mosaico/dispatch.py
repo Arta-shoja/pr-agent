@@ -50,6 +50,16 @@ _DIFF_START_RE = re.compile(r"^(?:diff --git |@@ )")
 # '+'/'-'/a space would then be eaten as diff body. The trailing space is load-bearing,
 # keeping a markdown rule or setext underline ('---') out.
 _DIFF_FILE_HEADER_RE = re.compile(r"^(?:--- |\+\+\+ )")
+# Metadata that follows a file header. Only consulted right after one, because a headerless
+# diff never opens diff mode and 'Binary files improve.py ... differ' would otherwise leak
+# its filename to the verb matcher. Excludes the '[ +\-\\]|$' arms below: those match
+# ordinary prose and may only be dropped once a hunk has actually opened the body.
+_DIFF_META_LINE_RE = re.compile(
+    r"^(?:index [0-9a-fA-F]"
+    r"|(?:old|new) mode \d|(?:new|deleted) file mode \d"
+    r"|(?:similarity|dissimilarity) index \d|rename (?:from|to) |copy (?:from|to) "
+    r"|Binary files .*differ$|GIT binary patch$)"
+)
 _DIFF_BODY_LINE_RE = re.compile(
     r"^(?:diff --git |index [0-9a-fA-F]|--- |\+\+\+ |@@ "
     r"|(?:old|new) mode \d|(?:new|deleted) file mode \d"
@@ -186,13 +196,17 @@ def _diff_prose(text: str) -> str:
     # Drop a fenced ```diff ... ``` block entirely, then scan what is left: a file header
     # sitting OUTSIDE the fence would otherwise never be excised.
     text = re.sub(r"```\s*diff\s*\n.*?```", " ", text, flags=re.IGNORECASE | re.DOTALL)
-    kept, in_diff = [], False
+    kept, in_diff, after_header = [], False, False
     for line in text.split("\n"):
         if _DIFF_START_RE.match(line):
-            in_diff = True
+            in_diff, after_header = True, False
             continue
         if _DIFF_FILE_HEADER_RE.match(line):
+            after_header = True
             continue
+        if after_header and _DIFF_META_LINE_RE.match(line):
+            continue
+        after_header = False
         if in_diff:
             if _DIFF_BODY_LINE_RE.match(line):
                 continue
