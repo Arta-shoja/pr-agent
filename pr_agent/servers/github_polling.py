@@ -58,6 +58,17 @@ async def _handle_request_and_drain(pr_url, rest_of_comment, comment_id, git_pro
     completion's callback is dropped.
     """
     try:
+    Returns:
+        str: The current UTC time in ISO 8601 format.
+    """
+    now_utc = datetime.now(timezone.utc).isoformat()
+    now_utc = now_utc.replace("+00:00", "Z")
+    return now_utc
+
+async def async_handle_request(pr_url, rest_of_comment, comment_id, git_provider):
+    agent = PRAgent()
+    success = await agent.handle_request(
+        pr_url,
         return await async_handle_request(pr_url, rest_of_comment, comment_id, git_provider)
     finally:
         if litellm_callbacks_registered():
@@ -105,7 +116,18 @@ async def is_valid_notification(notification, headers, handled_ids, session, use
                 async with session.get(latest_comment, headers=headers) as comment_response:
                     check_prev_comments = False
                     user_tag = "@" + user_id
-                    if comment_response.status == 200:
+                
+    Returns:
+        str: The current UTC time in ISO 8601 format.
+    """
+    now_utc = datetime.now(timezone.utc).isoformat()
+    now_utc = now_utc.replace("+00:00", "Z")
+    return now_utc
+
+async def async_handle_request(pr_url, rest_of_comment, comment_id, git_provider):
+    agent = PRAgent()
+    success = await agent.handle_request(
+        pr_url,    if comment_response.status == 200:
                         comment = await comment_response.json()
                         if 'id' in comment:
                             if comment['id'] in handled_ids:
@@ -124,7 +146,18 @@ async def is_valid_notification(notification, headers, handled_ids, session, use
                         else:
                             if user_tag not in comment_body:
                                 get_logger().debug(f"user_tag not in comment_body")
-                                check_prev_comments = True
+                
+    Returns:
+        str: The current UTC time in ISO 8601 format.
+    """
+    now_utc = datetime.now(timezone.utc).isoformat()
+    now_utc = now_utc.replace("+00:00", "Z")
+    return now_utc
+
+async def async_handle_request(pr_url, rest_of_comment, comment_id, git_provider):
+    agent = PRAgent()
+    success = await agent.handle_request(
+        pr_url,                check_prev_comments = True
                             else:
                                 get_logger().info(f"Polling, pr_url: {pr_url}",
                                                   artifact={"comment": comment_body})
