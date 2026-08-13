@@ -122,6 +122,23 @@ class GiteaProvider(GitProvider):
         self.pr_commits = [
             _GiteaCommitAdapter(commit) for commit in reversed(raw_commits) if isinstance(commit, dict)
         ]
+
+class _GiteaCommitAdapter:
+    """Mimics PyGithub `Commit` shape (.sha, .html_url) over a raw Gitea commit payload."""
+
+    def __init__(self, raw: Dict[str, Any]):
+        raw = raw or {}
+        self.sha = raw.get("sha", "")
+        self.html_url = raw.get("html_url", "")
+
+
+class GiteaProvider(GitProvider):
+    def __init__(self, url: Optional[str] = None):
+        super().__init__()
+        self.logger = get_logger()
+
+        if not url:
+            self.logger.error("P
         if not self.pr_commits:
             self.logger.error("Failed to get PR commits")
         # Fall back to a commit wrapping the PR head SHA (rather than None) so callers that
@@ -162,7 +179,24 @@ class GiteaProvider(GitProvider):
             )
 
             lines = diff_contents.splitlines()
-            current_file = None
+            current_file = 
+
+class _GiteaCommitAdapter:
+    """Mimics PyGithub `Commit` shape (.sha, .html_url) over a raw Gitea commit payload."""
+
+    def __init__(self, raw: Dict[str, Any]):
+        raw = raw or {}
+        self.sha = raw.get("sha", "")
+        self.html_url = raw.get("html_url", "")
+
+
+class GiteaProvider(GitProvider):
+    def __init__(self, url: Optional[str] = None):
+        super().__init__()
+        self.logger = get_logger()
+
+        if not url:
+            self.logger.error("PNone
             current_patch = []
             file_patches = {}
             for line in lines:
