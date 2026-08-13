@@ -70,6 +70,21 @@ async def handle_manifest(request: Request, response: Response):
     manifest_obj = json.loads(manifest)
     return JSONResponse(manifest_obj)
 
+setup_logger(fmt=LoggingFormat.JSON, level=get_settings().get("CONFIG.LOG_LEVEL", "DEBUG"))
+router = APIRouter()
+secret_provider = get_secret_provider() if get_settings().get("CONFIG.SECRET_PROVIDER") else None
+
+
+async def get_bearer_token(shared_secret: str, client_key: str):
+    try:
+        now = int(time.time())
+        url = "https://bitbucket.org/site/oauth2/access_token"
+        canonical_url = "GET&/site/oauth2/access_token&"
+        qsh = hashlib.sha256(canonical_url.encode("utf-8")).hexdigest()
+        app_key = get_settings().bitbucket.app_key
+
+        payload = {
+            "iss": app
 
 def _get_username(data):
     actor = data.get("data", {}).get("actor", {})
