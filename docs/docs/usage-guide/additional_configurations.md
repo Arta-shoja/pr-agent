@@ -155,7 +155,7 @@ Each inline suggestion is anchored to the MR head commit it was posted against. 
 resolve_outdated_inline_threads = true
 ```
 
-A thread is only resolved when all of the following hold, so a live discussion is never closed:
+A thread is only resolved when all of the following hold, so a thread with any human reply is never closed:
 
 - the thread was opened by PR-Agent itself, judged from the body: it carries a dedup marker (proof, and present on every inline review finding), or it opens with the `**Suggestion:**` lead that inline suggestions are published with (a strong hint rather than proof, since a person could type it). This is what keeps the cleanup off hand-written comments made from the same account, which matters because the GitLab token often belongs to a person rather than a dedicated bot user;
 - every non-system note in it was written by that same user, so a single human reply leaves the thread alone. GitLab system notes are ignored, because the "changed this line in version N of the diff" note that marks a thread outdated is authored by whoever pushed;
@@ -163,6 +163,8 @@ A thread is only resolved when all of the following hold, so a live discussion i
 - the head SHA recorded in that anchor differs from the MR's current diff head SHA.
 
 Anything that cannot be confirmed (an unreadable position, an unknown current head SHA, an unresolvable bot identity) is skipped rather than resolved.
+
+Note that the anchor's recorded head SHA never changes after the thread is created, so any PR-Agent thread older than the latest push qualifies, including ones GitLab still renders on unchanged lines. With `config.persistent_inline_comments` enabled the next run re-posts a suggestion that still applies, so the effect is resolve-and-repost rather than removal.
 
 ## Log Level
 
