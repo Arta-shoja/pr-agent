@@ -19,7 +19,8 @@ from ..algo.git_patch_processing import decode_if_bytes
 from ..algo.inline_comment_dedup import (body_fingerprint, body_with_markers,
                                          code_fingerprint,
                                          get_inline_comment_store,
-                                         is_agent_inline_comment)
+                                         is_agent_inline_comment,
+                                         marker_fingerprints)
 from ..algo.language_handler import is_valid_file
 from ..algo.utils import (clip_tokens, comment_matches_any_identity,
                           find_line_number_of_relevant_line_in_file,
@@ -964,6 +965,7 @@ class GitLabProvider(GitProvider):
             get_logger().warning(f"Failed to list discussions of merge request {self.id_mr}: {e}")
             return
         resolved = 0
+        released_fps = set()
         for discussion in discussions:
             discussion_id = getattr(discussion, 'id', None)
             try:
@@ -972,8 +974,13 @@ class GitLabProvider(GitProvider):
                 discussion.resolved = True
                 discussion.save()
                 resolved += 1
+                for note in discussion.attributes.get('notes') or []:
+                    if isinstance(note, dict):
+                        released_fps |= marker_fingerprints(note.get('body'))
             except Exception as e:
                 get_logger().warning(f"Failed to resolve outdated inline thread {discussion_id}: {e}")
+        if released_fps:
+            get_inline_comment_store(self).release(released_fps)
         if resolved:
             get_logger().info(
                 f"Resolved {resolved} outdated inline thread(s) on merge request {self.id_mr}")

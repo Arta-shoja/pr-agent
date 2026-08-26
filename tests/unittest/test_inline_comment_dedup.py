@@ -569,3 +569,42 @@ def test_is_agent_inline_comment_rejects_hand_written_bodies():
     assert not d.is_agent_inline_comment("Here is my **Suggestion:** rename it")
     assert not d.is_agent_inline_comment("")
     assert not d.is_agent_inline_comment(None)
+
+
+def test_marker_fingerprints_collects_every_marker():
+    body = ("x\n\n<!-- pr-agent-dedup: a1b2c3d4e5f6 -->"
+            "\n<!-- pr-agent-dedup-code: b1b2c3d4e5f6 -->"
+            "\n<!-- pr-agent-key-issue-location: c1b2c3d4e5f6 -->")
+    assert d.marker_fingerprints(body) == {
+        "a1b2c3d4e5f6", "b1b2c3d4e5f6", "c1b2c3d4e5f6"}
+    assert d.marker_fingerprints("") == set()
+    assert d.marker_fingerprints(None) == set()
+
+
+def test_release_frees_a_fingerprint_the_store_had_already_loaded():
+    store = d.InlineCommentStore(MagicMock())
+    with patch.object(d, "iter_existing_inline_comment_bodies",
+                      return_value=["x\n\n<!-- pr-agent-dedup: a1b2c3d4e5f6 -->"]):
+        assert store.seen("a1b2c3d4e5f6")
+        store.release({"a1b2c3d4e5f6"})
+        assert not store.seen("a1b2c3d4e5f6")
+
+
+def test_release_before_the_load_survives_it():
+    # The sweep can run before anything reads the store; the scan must not
+    # re-suppress a fingerprint whose thread it just resolved.
+    store = d.InlineCommentStore(MagicMock())
+    store.release({"a1b2c3d4e5f6"})
+    with patch.object(d, "iter_existing_inline_comment_bodies",
+                      return_value=["x\n\n<!-- pr-agent-dedup: a1b2c3d4e5f6 -->"]):
+        assert not store.seen("a1b2c3d4e5f6")
+
+
+def test_release_leaves_every_other_thread_suppressive():
+    store = d.InlineCommentStore(MagicMock())
+    with patch.object(d, "iter_existing_inline_comment_bodies", return_value=[
+            "x\n\n<!-- pr-agent-dedup: a1b2c3d4e5f6 -->",
+            "y\n\n<!-- pr-agent-dedup: d1b2c3d4e5f6 -->"]):
+        store.release({"a1b2c3d4e5f6"})
+        assert not store.seen("a1b2c3d4e5f6")
+        assert store.seen("d1b2c3d4e5f6")
