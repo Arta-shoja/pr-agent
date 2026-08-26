@@ -688,7 +688,7 @@ class GitLabProvider(GitProvider):
             except Exception as e:
                 get_logger().warning(
                     f"Could not resolve the authenticated GitLab user; "
-                    f"incremental anchor notes will not be filtered by author: {e}"
+                    f"author-based filtering is disabled for this run: {e}"
                 )
                 self._own_user_id = None
         return self._own_user_id
